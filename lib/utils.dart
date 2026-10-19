@@ -12,6 +12,53 @@ String formatCurrency(num amount) {
   return hasPaise ? _rupee.format(n) : _rupeeNoDec.format(n);
 }
 
+String formatCompactCurrency(num amount) {
+  final n = amount.toDouble();
+  final absN = n.abs();
+  if (absN >= 10000000) {
+    final cr = n / 10000000;
+    return '₹${cr.toStringAsFixed(cr % 1 == 0 ? 0 : 1)}Cr';
+  }
+  if (absN >= 100000) {
+    final lk = n / 100000;
+    return '₹${lk.toStringAsFixed(lk % 1 == 0 ? 0 : 1)}L';
+  }
+  if (absN >= 1000) {
+    final k = n / 1000;
+    return '₹${k.toStringAsFixed(k % 1 == 0 ? 0 : 1)}k';
+  }
+  return '₹${n.round()}';
+}
+
+String formatChartDate(String iso) {
+  if (iso.length >= 10) {
+    try {
+      final dt = DateTime.parse(iso);
+      return DateFormat('d MMM').format(dt);
+    } catch (_) {}
+  }
+  if (iso.length > 5) return iso.substring(5);
+  return iso;
+}
+
+String formatChartMonth(String iso) {
+  if (iso.length >= 7) {
+    try {
+      final parts = iso.split('-');
+      if (parts.length >= 2) {
+        final year = int.tryParse(parts[0]);
+        final month = int.tryParse(parts[1]);
+        if (year != null && month != null) {
+          final dt = DateTime(year, month);
+          return DateFormat('MMM').format(dt);
+        }
+      }
+    } catch (_) {}
+  }
+  if (iso.length > 2) return iso.substring(2);
+  return iso;
+}
+
 String formatNumber(num n) => _int.format(n);
 
 String formatDate(String iso) {

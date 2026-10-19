@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,6 +7,7 @@ import '../data/models.dart';
 import '../theme.dart';
 import '../utils.dart';
 import '../widgets/async_view.dart';
+import '../widgets/charts.dart';
 import '../widgets/count_up.dart';
 import '../widgets/petal_field.dart';
 
@@ -132,44 +132,24 @@ class _RevenueChartCard extends StatelessWidget {
   const _RevenueChartCard({required this.daily});
   @override Widget build(BuildContext context) {
     final rows = daily.take(30).toList();
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
-        boxShadow: const [BoxShadow(blurRadius: 18, color: Color(0x11000000), offset: Offset(0, 6))],
+    return StudioChartPanel(
+      title: 'Revenue Overview',
+      subtitle: '30-day continuous sales trajectory',
+      accentColor: AppColors.primary,
+      delay: 150,
+      trailing: const StatusChip(
+        label: 'Live',
+        bg: AppColors.primarySoft,
+        fg: AppColors.primary,
+        icon: Icons.auto_awesome,
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Text('Revenue · 30 days', style: GoogleFonts.fraunces(fontSize: 18, fontWeight: FontWeight.w800)),
-          const Spacer(),
-          const StatusChip(label: 'Live', bg: AppColors.primarySoft, fg: AppColors.primary, icon: Icons.auto_awesome),
-        ]),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 180,
-          child: rows.isEmpty
-              ? const Center(child: Text('No sales yet.', style: TextStyle(color: AppColors.muted)))
-              : LineChart(LineChartData(
-                  gridData: const FlGridData(show: true, drawVerticalLine: false, horizontalInterval: 1),
-                  titlesData: const FlTitlesData(show: false),
-                  borderData: FlBorderData(show: false),
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: [for (int i = 0; i < rows.length; i++) FlSpot(i.toDouble(), rows[i].revenue)],
-                      isCurved: true, color: AppColors.primary, barWidth: 3,
-                      dotData: const FlDotData(show: false),
-                      belowBarData: BarAreaData(show: true, gradient: LinearGradient(
-                        begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                        colors: [AppColors.primary.withValues(alpha: 0.3), AppColors.primary.withValues(alpha: 0)],
-                      )),
-                    ),
-                  ],
-                )),
-        ),
-      ]),
-    ).animate().fadeIn(delay: 150.ms, duration: 400.ms);
+      child: StudioAreaChart(
+        rows: rows,
+        metric: (r) => r.revenue,
+        metricName: 'Revenue',
+        isCurrency: true,
+      ),
+    );
   }
 }
 
