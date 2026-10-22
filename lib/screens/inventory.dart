@@ -101,11 +101,18 @@ class _StockTab extends StatelessWidget {
                   ),
                   PopupMenuButton<String>(
                     itemBuilder: (c) => const [
+                      PopupMenuItem(value: 'stock', child: Row(children: [Icon(Icons.inventory_2_outlined, size: 18), SizedBox(width: 8), Text('Stock movement')])),
+                      PopupMenuItem(value: 'history', child: Row(children: [Icon(Icons.history, size: 18), SizedBox(width: 8), Text('Stock history')])),
                       PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('Edit')])),
                       PopupMenuItem(value: 'archive', child: Row(children: [Icon(Icons.archive_outlined, size: 18), SizedBox(width: 8), Text('Archive')])),
                     ],
                     onSelected: (v) async {
-                      if (v == 'edit') {
+                      if (v == 'stock') {
+                        final changed = await _recordStock(context, p);
+                        if (changed && context.mounted) { refresh(); onChange(); }
+                      } else if (v == 'history') {
+                        if (context.mounted) await _showStockHistory(context, p);
+                      } else if (v == 'edit') {
                         final ok = await _editProduct(context, product: p);
                         if (ok == true) { refresh(); onChange(); }
                       } else if (v == 'archive') {
@@ -451,3 +458,62 @@ Future<void> _editRecipe(BuildContext ctx, Product bouquet, List<Product> allPro
 }
 
 class _RecipeDraft { final int productId; double quantity; _RecipeDraft({required this.productId, required this.quantity}); }
+
+Future<bool> _recordStock(BuildContext context, Product product) async {
+  final quantity = TextEditingController();
+  final reason = TextEditingController();
+  var kind = 'received';
+  final result = await showDialog<bool>(context: context, builder: (dialog) =>
+    StatefulBuilder(builder: (context, setState) => AlertDialog(
+      title: Text('Stock · ${product.name}'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        DropdownButtonFormField<String>(initialValue: kind,
+          decoration: const InputDecoration(labelText: 'Movement'),
+          items: const [
+            DropdownMenuItem(value: 'received', child: Text('Received')),
+            DropdownMenuItem(value: 'waste', child: Text('Waste')),
+            DropdownMenuItem(value: 'adjustment', child: Text('Adjustment (+ / −)')),
+          ], onChanged: (v) => setState(() => kind = v ?? kind)),
+        TextField(controller: quantity, keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+          decoration: const InputDecoration(labelText: 'Quantity')),
+        TextField(controller: reason, decoration: const InputDecoration(labelText: 'Reason')),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () async {
+          final amount = double.tryParse(quantity.text.trim());
+          if (amount == null || amount == 0 || (kind != 'adjustment' && amount < 0)) {
+            toast(context, 'Enter a valid quantity', error: true); return;
+          }
+          try {
+            await repo.recordStockMovement(product.id, kind, amount, reason.text.trim());
+            if (dialog.mounted) Navigator.pop(dialog, true);
+          } catch (e) { if (context.mounted) toast(context, '$e', error: true); }
+        }, child: const Text('Record')),
+      ],
+    )));
+  quantity.dispose(); reason.dispose();
+  return result ?? false;
+}
+
+Future<void> _showStockHistory(BuildContext context, Product product) async {
+  await showModalBottomSheet(context: context, isScrollControlled: true,
+    builder: (sheet) => SafeArea(child: SizedBox(height: MediaQuery.of(sheet).size.height * 0.65,
+      child: Column(children: [
+        ListTile(title: Text('${product.name} · stock history'),
+          trailing: IconButton(onPressed: () => Navigator.pop(sheet), icon: const Icon(Icons.close))),
+        Expanded(child: FutureBuilder<List<Map<String,dynamic>>>(
+          future: repo.stockMovements(product.id),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) return Center(child: Text('${snapshot.error}'));
+            if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+            if (snapshot.data!.isEmpty) return const Center(child: Text('No movements recorded yet.'));
+            return ListView(children: [for (final movement in snapshot.data!) ListTile(
+              title: Text('${movement['kind']} · ${movement['quantity']} ${product.unit}'),
+              subtitle: Text('${movement['reason'] ?? ''}  ${movement['date'] ?? ''}'),
+              trailing: Text('${movement['before']} → ${movement['after']}'),
+            )]);
+          },
+        )),
+      ]))));
+}

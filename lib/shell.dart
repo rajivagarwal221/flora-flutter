@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import 'theme.dart';
 import 'widgets/backup.dart';
@@ -42,6 +43,8 @@ class AppShell extends StatelessWidget {
                   onTap: () async { Navigator.pop(ctx); await importBackup(context); }),
                 ListTile(leading: const Icon(Icons.calculate_outlined, color: AppColors.primary), title: const Text('Calculator'),
                   onTap: () async { Navigator.pop(ctx); await showCalculator(context); }),
+                ListTile(leading: const Icon(Icons.logout, color: AppColors.primary), title: const Text('Sign out'),
+                  onTap: () async { Navigator.pop(ctx); await FirebaseAuth.instance.signOut(); }),
                 const SizedBox(height: 10),
               ])),
             );

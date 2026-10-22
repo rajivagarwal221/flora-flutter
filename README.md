@@ -1,56 +1,43 @@
-# Flora - Flower Shop Management App
+# Flora · Flower Shop Management
 
-Full-parity Android port of the Sidhi Florals web app, sharing the same Supabase backend.
+Flutter app for billing, inventory, customers, dues, reports, and planning. It uses Firebase project `flora-411ad` for Authentication and Firestore.
 
-## What's inside
+## What is available
 
-- **Dashboard** — today & monthly stats, revenue trend, star product, low stock, unavailable bouquets
-- **Billing** — POS catalog, custom bouquet builder, cart, customer picker, total / amount paid, generate bill → receipt
-- **Sales ledger** — all bills, expand to see line items, void (returns stock)
-- **Inventory** — Stock / Bouquets / Margins tabs; add/edit/archive products; edit bouquet recipes
-- **Customers** — list, create, edit, archive, purchase history sheet
-- **Credits & dues** — outstanding bills, record payment
-- **Reports** — monthly revenue, daily units, daily profit, monthly profit, top products
-- **Receipt sheet** — formatted bill + Print / PDF export via the system print dialog
+- **Billing and dues:** receipts, stock deduction, payment recording, and voids use Firestore transactions.
+- **Inventory:** products and bouquet recipes, with separate receipt, waste, adjustment, and stock history records.
+- **Reports:** one date range for revenue, profit, units, and product charts. The category pie chart has a custom bouquet slice and product drill-down. Voided bills are excluded.
+- **Planning:** weekly sales changes, overdue amounts, reorder proposals, bouquet ideas, days of stock left, and seven-day demand ranges with a prior-week comparison. These are deterministic calculations over shop data. Proposals require manual action; they never edit stock or prices.
 
-Supabase URL & anon key are read from `--dart-define` with sensible defaults in `lib/config.dart`.
+## Firebase setup
 
-## Build
+The Android and web app identifiers are in `lib/firebase_options.dart`. The Android app is registered with package `com.sidhiflorals.sidhi_florals`. Google sign-in and Firestore rules are managed in `firebase.json` and `firestore.rules`.
 
-Prereqs:
+Firestore currently allows access only to the verified Google account named in `firestore.rules`. Edit that account and redeploy rules when ownership changes. A different release signing key needs its SHA-1 and SHA-256 fingerprints registered in the Firebase Android app.
 
-1. **Android Studio** (installs Android SDK, platform tools, emulator). After installing, open it once and let it finish SDK setup, then:
-   ```
-   flutter doctor --android-licenses
-   ```
-2. From this folder:
-   ```
-   flutter pub get
-   flutter run              # on a connected phone or emulator
-   flutter build apk --release
-   ```
-   The release APK lands at `build/app/outputs/flutter-apk/app-release.apk`.
+The one-time data import from the former backend was completed on 2026-10-22 and verified by counts: 1 product, 1 customer, 8 sales. The running Flutter app has no Supabase connection. The separate web app has not been migrated here.
 
-### Override Supabase creds at build time
+## Run
 
-```
-flutter build apk --release \
-  --dart-define=SUPABASE_URL=https://your.supabase.co \
-  --dart-define=SUPABASE_ANON_KEY=your_anon_key
+Install Flutter and the Android SDK, then run:
+
+```text
+flutter pub get
+flutter run
 ```
 
-## Project layout
+For Android:
 
+```text
+flutter build apk --release
 ```
-lib/
-  main.dart            app entry + go_router
-  config.dart          Supabase URL / anon key
-  theme.dart           colors + Material 3 theme
-  utils.dart           currency, dates, display helpers
-  shell.dart           bottom nav scaffold
-  data/
-    models.dart        Dart mirrors of src/api/types.ts
-    api.dart           PostgREST client (http) + Repo
-  screens/             one file per page
-  widgets/             async view, receipt sheet (with PDF)
+
+The release build currently uses the standard debug signing key. Register a production signing key with Firebase before distributing a production APK.
+
+To redeploy backend configuration:
+
+```text
+npx -y firebase-tools@latest deploy --only firestore:rules,auth --project flora-411ad
 ```
+
+Web Google sign-in works on authorized Firebase domains. Add a deployed web domain in Firebase Authentication settings if hosting the Flutter web build elsewhere.

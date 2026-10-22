@@ -1,0 +1,18 @@
+{
+  "firestore": [
+    {
+      "database": "default",
+      "rules": "firestore.rules",
+      "indexes": "firestore.indexes.json"
+    }
+  ],
+  "auth": {
+    "providers": {
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Flora",
+        "supportEmail": "arajiv221@gmail.com",
+        "authorizedRedirectUris": []
+      }
+    }
+  }
+}
