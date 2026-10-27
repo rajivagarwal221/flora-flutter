@@ -1,13 +1,12 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isShopOwner() {
-      return request.auth != null
-        && request.auth.token.email_verified == true
-        && request.auth.token.email == 'arajiv221@gmail.com';
-    }
+    // Sign-in has been removed from the client, so the app connects
+    // unauthenticated. Open access is required for the UI to read/write.
+    // Keep this project behind a non-public Firebase project id, or restore
+    // sign-in + the previous owner-gated rule for a public deploy.
     match /{document=**} {
-      allow read, write: if isShopOwner();
+      allow read, write: if true;
     }
   }
 }
