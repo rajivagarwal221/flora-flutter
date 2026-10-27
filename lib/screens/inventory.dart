@@ -6,6 +6,7 @@ import '../data/models.dart';
 import '../theme.dart';
 import '../utils.dart';
 import '../widgets/async_view.dart';
+import '../widgets/product_image.dart';
 
 const _units = ['stem', 'bunch', 'kg', 'dozen', 'piece', 'sheet', 'garland'];
 
@@ -76,10 +77,7 @@ class _StockTab extends StatelessWidget {
                 boxShadow: const [BoxShadow(blurRadius: 10, color: Color(0x0A000000), offset: Offset(0, 4))],
               ),
               child: Row(children: [
-                Container(
-                  width: 6, height: 48,
-                  decoration: BoxDecoration(gradient: AppColors.primaryGradient, borderRadius: BorderRadius.circular(4)),
-                ),
+                ProductImage(product: p, size: 56),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(displayName(p), style: const TextStyle(fontWeight: FontWeight.w800)),
@@ -170,6 +168,8 @@ class _BouquetsTab extends StatelessWidget {
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
                   ),
                   child: Row(children: [
+                    ProductImage(product: b, size: 64, radius: 14),
+                    const SizedBox(width: 12),
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(b.name, style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w800)),
                       const SizedBox(height: 2),

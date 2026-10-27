@@ -6,6 +6,7 @@ import '../data/models.dart';
 import '../theme.dart';
 import '../utils.dart';
 import '../widgets/async_view.dart';
+import '../widgets/product_image.dart';
 import '../widgets/receipt.dart';
 
 class BillingScreen extends StatefulWidget {
@@ -146,13 +147,9 @@ class _PosTabState extends State<_PosTab> with AutomaticKeepAliveClientMixin {
                     boxShadow: const [BoxShadow(blurRadius: 10, color: Color(0x0A000000), offset: Offset(0, 4))],
                   ),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [
-                      Container(width: 6, height: 20, decoration: BoxDecoration(
-                        gradient: isBouquet ? const LinearGradient(colors: [AppColors.secondary, AppColors.secondary]) : AppColors.primaryGradient,
-                        borderRadius: BorderRadius.circular(4))),
-                      const SizedBox(width: 6),
-                      Expanded(child: Text(displayName(p), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis)),
-                    ]),
+                    AspectRatio(aspectRatio: 1.3, child: ProductImage(product: p, size: 100, radius: 10)),
+                    const SizedBox(height: 8),
+                    Text(displayName(p), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
                     const Spacer(),
                     Text(formatCurrency(p.sellingPrice), style: GoogleFonts.fraunces(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primary)),
                     const SizedBox(height: 2),

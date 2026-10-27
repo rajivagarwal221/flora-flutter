@@ -28,6 +28,8 @@ class DashboardScreen extends StatelessWidget {
               const SizedBox(height: 12),
               _StatGrid(d: d),
               const SizedBox(height: 16),
+              const _AiInsightBanner(),
+              const SizedBox(height: 14),
               _RevenueChartCard(daily: daily),
               const SizedBox(height: 16),
               if (d.starProduct != null) _StarCard(star: d.starProduct!),
@@ -124,6 +126,43 @@ class _StatGrid extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _AiInsightBanner extends StatelessWidget {
+  const _AiInsightBanner();
+  @override Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => context.go('/insights'),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white, borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.primaryBorder),
+              boxShadow: const [BoxShadow(blurRadius: 14, color: AppColors.roseShadow, offset: Offset(0, 6))],
+            ),
+            child: Row(children: [
+              Container(width: 42, height: 42, decoration: const BoxDecoration(
+                gradient: AppColors.primaryGradient, shape: BoxShape.circle),
+                child: const Icon(Icons.auto_awesome, color: Colors.white, size: 22)),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('AI Insights', style: GoogleFonts.fraunces(fontSize: 16, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 2),
+                const Text('Forecast · reorder suggestions · customer segments · bouquet designer',
+                  style: TextStyle(color: AppColors.muted, fontSize: 11.5)),
+              ])),
+              const Icon(Icons.arrow_forward_ios, color: AppColors.primary, size: 16),
+            ]),
+          ),
+        ),
+      ),
+    ).animate().fadeIn(delay: 120.ms, duration: 300.ms).slideY(begin: 0.1, end: 0);
   }
 }
 
