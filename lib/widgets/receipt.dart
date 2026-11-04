@@ -98,7 +98,7 @@ class ReceiptSheet extends StatelessWidget {
               Expanded(child: OutlinedButton.icon(onPressed: () => _shareText(sale), icon: const Icon(Icons.share), label: const Text('Share'))),
               const SizedBox(width: 8),
               Expanded(child: ElevatedButton.icon(
-                onPressed: sale.customer == null && sale.customer?.phone == null ? null : () => _shareWhatsApp(context, sale),
+                onPressed: (sale.customer?.phone ?? '').isEmpty ? null : () => _shareWhatsApp(context, sale),
                 icon: const Icon(Icons.chat_bubble), label: const Text('WhatsApp'),
               )),
             ]),
