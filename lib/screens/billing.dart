@@ -131,7 +131,13 @@ class _PosTabState extends State<_PosTab> with AutomaticKeepAliveClientMixin {
         ? const EmptyState(icon: Icons.local_florist, message: 'No products found')
         : GridView.builder(
             padding: const EdgeInsets.all(12),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 1.3, mainAxisSpacing: 10, crossAxisSpacing: 10),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              // Card is taller than wide so the square image + text + price fit without overflow.
+              childAspectRatio: 0.72,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+            ),
             itemCount: filtered.length,
             itemBuilder: (c, i) {
               final p = filtered[i]; final max = _maxFor(p); final disabled = max <= 0;
@@ -140,21 +146,28 @@ class _PosTabState extends State<_PosTab> with AutomaticKeepAliveClientMixin {
                 borderRadius: BorderRadius.circular(16),
                 onTap: disabled ? null : () => _addProduct(p),
                 child: Opacity(opacity: disabled ? 0.5 : 1, child: Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: Colors.white, borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: AppColors.border),
                     boxShadow: const [BoxShadow(blurRadius: 10, color: Color(0x0A000000), offset: Offset(0, 4))],
                   ),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    AspectRatio(aspectRatio: 1.3, child: ProductImage(product: p, size: 100, radius: 10)),
+                    AspectRatio(aspectRatio: 1, child: ProductImage(product: p, size: 140, radius: 10)),
                     const SizedBox(height: 8),
-                    Text(displayName(p), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    Text(displayName(p),
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, height: 1.15),
+                      maxLines: 2, overflow: TextOverflow.ellipsis),
                     const Spacer(),
-                    Text(formatCurrency(p.sellingPrice), style: GoogleFonts.fraunces(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primary)),
+                    Text(formatCurrency(p.sellingPrice),
+                      style: GoogleFonts.fraunces(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primary),
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 2),
-                    Text(isBouquet ? (max > 0 ? 'Can make ${max.toStringAsFixed(0)}' : 'Short') : '${p.stock.toStringAsFixed(0)} ${p.unit} left',
-                      style: const TextStyle(color: AppColors.muted, fontSize: 11, fontWeight: FontWeight.w600)),
+                    Text(
+                      isBouquet ? (max > 0 ? 'Can make ${max.toStringAsFixed(0)}' : 'Short') : '${p.stock.toStringAsFixed(0)} ${p.unit} left',
+                      style: const TextStyle(color: AppColors.muted, fontSize: 10.5, fontWeight: FontWeight.w600),
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                    ),
                   ]),
                 )),
               ).animate(delay: (i.clamp(0, 10) * 25).ms).fadeIn(duration: 220.ms).slideY(begin: 0.1, end: 0);
