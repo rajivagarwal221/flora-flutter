@@ -241,28 +241,29 @@ class _ForecastTab extends StatelessWidget {
     final maxY = (allPoints.map((e) => e.value).fold<double>(0, math.max) * 1.15).clamp(10, double.infinity).toDouble();
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
       children: [
-        _MetricsStrip(result: result),
-        const SizedBox(height: 14),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18), border: Border.all(color: AppColors.border)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              Text('Revenue forecast', style: GoogleFonts.fraunces(fontSize: 18, fontWeight: FontWeight.w800)),
-              const Spacer(),
+              Expanded(child: Text('Revenue forecast', style: GoogleFonts.fraunces(fontSize: 18, fontWeight: FontWeight.w800))),
               const StatusChip(label: 'EMA + weekday', bg: AppColors.primarySoft, fg: AppColors.primary, icon: Icons.auto_awesome),
             ]),
             const SizedBox(height: 4),
             const Text('Solid line: observed. Dashed: predicted 14-day outlook.',
               style: TextStyle(color: AppColors.muted, fontSize: 12)),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             SizedBox(
-              height: 220,
+              height: 240,
               child: LineChart(LineChartData(
                 minY: 0, maxY: maxY,
-                gridData: const FlGridData(show: true, drawVerticalLine: false, horizontalInterval: 1),
+                gridData: FlGridData(
+                  show: true, drawVerticalLine: false,
+                  horizontalInterval: maxY / 4,
+                  getDrawingHorizontalLine: (_) => FlLine(color: AppColors.border, strokeWidth: 1),
+                ),
                 titlesData: const FlTitlesData(show: false),
                 borderData: FlBorderData(show: false),
                 lineBarsData: [

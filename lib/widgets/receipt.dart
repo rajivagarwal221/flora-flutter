@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -95,7 +97,7 @@ class ReceiptSheet extends StatelessWidget {
             ]),
             const SizedBox(height: 8),
             Row(children: [
-              Expanded(child: OutlinedButton.icon(onPressed: () => _shareText(sale), icon: const Icon(Icons.share), label: const Text('Share'))),
+              Expanded(child: OutlinedButton.icon(onPressed: () => _shareText(context, sale), icon: const Icon(Icons.share), label: const Text('Share'))),
               const SizedBox(width: 8),
               Expanded(child: ElevatedButton.icon(
                 onPressed: (sale.customer?.phone ?? '').isEmpty ? null : () => _shareWhatsApp(context, sale),
@@ -137,8 +139,32 @@ String _plainTextReceipt(Sale sale) {
   return b.toString();
 }
 
-Future<void> _shareText(Sale sale) async {
-  await Share.share(_plainTextReceipt(sale), subject: 'Bill #${padId(sale.id)}');
+Future<void> _shareText(BuildContext ctx, Sale sale) async {
+  final text = _plainTextReceipt(sale);
+  final subject = 'Bill #${padId(sale.id)}';
+  if (kIsWeb) {
+    // The web Share API no-ops on desktop Chrome with no share target;
+    // copying to clipboard is the reliable fallback.
+    try {
+      await Clipboard.setData(ClipboardData(text: text));
+      if (ctx.mounted) toast(ctx, 'Receipt copied to clipboard');
+      return;
+    } catch (_) { /* fall through to native share */ }
+  }
+  try {
+    final result = await Share.share(text, subject: subject);
+    if (result.status == ShareResultStatus.unavailable && ctx.mounted) {
+      await Clipboard.setData(ClipboardData(text: text));
+      if (ctx.mounted) toast(ctx, 'Receipt copied to clipboard');
+    }
+  } catch (e) {
+    try {
+      await Clipboard.setData(ClipboardData(text: text));
+      if (ctx.mounted) toast(ctx, 'Receipt copied to clipboard');
+    } catch (_) {
+      if (ctx.mounted) toast(ctx, 'Could not share: $e', error: true);
+    }
+  }
 }
 
 Future<void> _shareWhatsApp(BuildContext ctx, Sale sale) async {
@@ -151,40 +177,171 @@ Future<void> _shareWhatsApp(BuildContext ctx, Sale sale) async {
   if (!ok && ctx.mounted) toast(ctx, 'Could not open WhatsApp', error: true);
 }
 
+const _shopPhone = '9136018065';
+const _shopTagline = 'Fresh Flowers, Bouquets & Gifting';
+
+String _rupee(num n) {
+  // Use "Rs." prefix instead of ₹ so the PDF renders correctly with the
+  // bundled font set (no Unicode glyph gaps). The in-app UI still shows ₹.
+  final hasPaise = (n.toDouble() * 100 - (n.toDouble() * 100).round()).abs() > 0.5
+      || ((n.toDouble() * 100).round() % 100) != 0;
+  final s = hasPaise ? n.toStringAsFixed(2) : n.toStringAsFixed(0);
+  // Indian thousands grouping: 3,66,000
+  final parts = s.split('.');
+  final intPart = parts[0];
+  final neg = intPart.startsWith('-');
+  final digits = neg ? intPart.substring(1) : intPart;
+  String grouped;
+  if (digits.length <= 3) {
+    grouped = digits;
+  } else {
+    final last3 = digits.substring(digits.length - 3);
+    final rest = digits.substring(0, digits.length - 3);
+    final buf = StringBuffer();
+    for (int i = 0; i < rest.length; i++) {
+      final fromEnd = rest.length - i;
+      buf.write(rest[i]);
+      if (fromEnd > 1 && fromEnd.isOdd) buf.write(',');
+    }
+    grouped = '$buf,$last3';
+  }
+  final body = parts.length == 2 ? '$grouped.${parts[1]}' : grouped;
+  return 'Rs. ${neg ? "-" : ""}$body';
+}
+
+String _receiptDateTime(String iso) {
+  try {
+    final d = DateTime.parse(iso).toLocal();
+    final day = d.day.toString().padLeft(2, '0');
+    final month = d.month.toString().padLeft(2, '0');
+    final year = d.year;
+    int h = d.hour;
+    final suffix = h >= 12 ? 'pm' : 'am';
+    h = h % 12 == 0 ? 12 : h % 12;
+    final mm = d.minute.toString().padLeft(2, '0');
+    final ss = d.second.toString().padLeft(2, '0');
+    return '$day/$month/$year, $h:$mm:$ss $suffix';
+  } catch (_) { return iso; }
+}
+
+pw.Widget _dashedDivider() => pw.Container(
+  height: 1,
+  child: pw.CustomPaint(
+    size: const PdfPoint(double.infinity, 1),
+    painter: (canvas, size) {
+      const dash = 3.0, gap = 2.5;
+      canvas.setStrokeColor(PdfColors.grey600);
+      canvas.setLineWidth(0.5);
+      double x = 0;
+      while (x < size.x) {
+        canvas.drawLine(x, 0.5, (x + dash).clamp(0, size.x).toDouble(), 0.5);
+        x += dash + gap;
+      }
+      canvas.strokePath();
+    },
+  ),
+);
+
 Future<void> _printPdf(Sale sale) async {
   final doc = pw.Document();
   doc.addPage(pw.Page(
-    pageFormat: PdfPageFormat.a5,
-    build: (c) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-      pw.Text('Flora — Flower Shop Management App', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, color: PdfColor.fromInt(0xFFD93B68))),
+    pageFormat: PdfPageFormat.a4,
+    margin: const pw.EdgeInsets.fromLTRB(32, 32, 32, 32),
+    build: (c) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
+      // ---------- Header (centered) ----------
+      pw.Center(child: pw.Text('FLORA', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold))),
+      pw.SizedBox(height: 4),
+      pw.Center(child: pw.Text(_shopTagline, style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700))),
+      pw.Center(child: pw.Text('Phone: $_shopPhone', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700))),
+      pw.SizedBox(height: 10),
+      _dashedDivider(),
+      pw.SizedBox(height: 10),
+      // ---------- Receipt metadata ----------
+      pw.Center(child: pw.Text('RECEIPT #${padId(sale.id)}', style: const pw.TextStyle(fontSize: 11))),
       pw.SizedBox(height: 2),
-      pw.Text('Bill #${padId(sale.id)}  ·  ${formatDate(sale.date)}', style: const pw.TextStyle(color: PdfColors.grey700)),
-      if (sale.customer != null) ...[
-        pw.SizedBox(height: 10),
-        pw.Text(sale.customer!.name, style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-        if (sale.customer!.phone.isNotEmpty) pw.Text(sale.customer!.phone, style: const pw.TextStyle(color: PdfColors.grey700)),
-      ],
-      pw.SizedBox(height: 14),
-      pw.Divider(),
+      pw.Center(child: pw.Text(_receiptDateTime(sale.date), style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700))),
+      pw.SizedBox(height: 10),
+      _dashedDivider(),
+      pw.SizedBox(height: 12),
+      // ---------- Customer block ----------
+      pw.Text('CUSTOMER', style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700, letterSpacing: 1)),
+      pw.SizedBox(height: 4),
+      pw.Text(
+        sale.customer?.name ?? 'Walk-in Customer',
+        style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+      ),
+      if ((sale.customer?.phone ?? '').isNotEmpty)
+        pw.Text(sale.customer!.phone, style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+      pw.SizedBox(height: 16),
+      // ---------- Items table ----------
       pw.Table(
-        columnWidths: const {0: pw.FlexColumnWidth(0.6), 1: pw.FlexColumnWidth(3), 2: pw.FlexColumnWidth(1.2)},
+        columnWidths: const {
+          0: pw.FlexColumnWidth(3.5),
+          1: pw.FlexColumnWidth(0.8),
+          2: pw.FlexColumnWidth(1.5),
+          3: pw.FlexColumnWidth(1.5),
+        },
+        border: pw.TableBorder(
+          top: pw.BorderSide(color: PdfColors.grey400, width: 0.5),
+          bottom: pw.BorderSide(color: PdfColors.grey400, width: 0.5),
+          horizontalInside: pw.BorderSide(color: PdfColors.grey300, width: 0.5),
+        ),
         children: [
+          pw.TableRow(
+            decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+            children: [
+              _cell('Item', bold: true, align: pw.TextAlign.left),
+              _cell('Qty', bold: true, align: pw.TextAlign.center),
+              _cell('Price', bold: true, align: pw.TextAlign.right),
+              _cell('Total', bold: true, align: pw.TextAlign.right),
+            ],
+          ),
           for (final it in sale.items) pw.TableRow(children: [
-            pw.Padding(padding: const pw.EdgeInsets.symmetric(vertical: 3), child: pw.Text('${_qty(it.quantity)}x')),
-            pw.Padding(padding: const pw.EdgeInsets.symmetric(vertical: 3), child: pw.Text(it.name)),
-            pw.Padding(padding: const pw.EdgeInsets.symmetric(vertical: 3), child: pw.Text(formatCurrency(it.total), textAlign: pw.TextAlign.right)),
+            _cell(it.name, align: pw.TextAlign.left),
+            _cell(_qty(it.quantity), align: pw.TextAlign.center),
+            _cell(_rupee(it.price), align: pw.TextAlign.right),
+            _cell(_rupee(it.total), align: pw.TextAlign.right, bold: true),
           ]),
         ],
       ),
-      pw.Divider(),
-      pw.Align(alignment: pw.Alignment.centerRight, child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
-        pw.Text('Total: ${formatCurrency(sale.total)}', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-        pw.Text('Paid: ${formatCurrency(sale.amountPaid)}'),
-        if (sale.balanceDue > 0.005) pw.Text('Balance due: ${formatCurrency(sale.balanceDue)}', style: pw.TextStyle(color: PdfColors.red, fontWeight: pw.FontWeight.bold)),
-      ])),
-      pw.SizedBox(height: 16),
-      pw.Text('Thank you for your order!', style: const pw.TextStyle(color: PdfColors.grey700, fontStyle: pw.FontStyle.italic)),
+      pw.SizedBox(height: 14),
+      // ---------- Grand total ----------
+      pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
+        pw.Text('GRAND TOTAL', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+        pw.Text(_rupee(sale.total), style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
+      ]),
+      if (sale.amountPaid < sale.total - 0.005 || sale.amountPaid > sale.total + 0.005) ...[
+        pw.SizedBox(height: 6),
+        pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
+          pw.Text('Paid', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+          pw.Text(_rupee(sale.amountPaid), style: const pw.TextStyle(fontSize: 10)),
+        ]),
+      ],
+      if (sale.balanceDue > 0.005) ...[
+        pw.SizedBox(height: 4),
+        pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
+          pw.Text('Balance Due', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.red)),
+          pw.Text(_rupee(sale.balanceDue), style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.red)),
+        ]),
+      ],
+      pw.SizedBox(height: 28),
+      // ---------- Footer ----------
+      pw.Center(child: pw.Text('Thank you for your order!',
+        style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, fontStyle: pw.FontStyle.italic))),
+      pw.SizedBox(height: 2),
+      pw.Center(child: pw.Text('Please visit again',
+        style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700, fontStyle: pw.FontStyle.italic))),
     ]),
   ));
-  await Printing.layoutPdf(onLayout: (fmt) async => doc.save());
+  await Printing.layoutPdf(
+    onLayout: (fmt) async => doc.save(),
+    name: 'Flora - Bill #${padId(sale.id)}',
+  );
 }
+
+pw.Widget _cell(String text, {bool bold = false, pw.TextAlign align = pw.TextAlign.left}) => pw.Padding(
+  padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+  child: pw.Text(text,
+    textAlign: align,
+    style: pw.TextStyle(fontSize: 10, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
+);
